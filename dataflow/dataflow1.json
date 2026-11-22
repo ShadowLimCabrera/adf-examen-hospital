@@ -1,0 +1,256 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"folder": {
+			"name": "Bronze"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_patients",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "source2"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_billing",
+						"type": "DatasetReference"
+					},
+					"name": "source3"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_admission",
+						"type": "DatasetReference"
+					},
+					"name": "source4"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_patients",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_billing",
+						"type": "DatasetReference"
+					},
+					"name": "sink3"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_admission",
+						"type": "DatasetReference"
+					},
+					"name": "sink4"
+				}
+			],
+			"transformations": [
+				{
+					"name": "genderclean"
+				},
+				{
+					"name": "phoneclean"
+				},
+				{
+					"name": "emailclean"
+				},
+				{
+					"name": "insuranceclean"
+				},
+				{
+					"name": "severityclean"
+				},
+				{
+					"name": "icdcodeclean"
+				},
+				{
+					"name": "amountclean"
+				},
+				{
+					"name": "chargetypeclean"
+				},
+				{
+					"name": "paymentstatusclean"
+				},
+				{
+					"name": "paymentdateclean"
+				},
+				{
+					"name": "departmentclean"
+				},
+				{
+					"name": "admissiondateclean"
+				},
+				{
+					"name": "dischargedateclean"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          patient_id as string,",
+				"          full_name as string,",
+				"          gender as string,",
+				"          date_of_birth as string,",
+				"          phone as string,",
+				"          email as string,",
+				"          address as string,",
+				"          insurance_provider as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source(output(",
+				"          diagnosis_id as string,",
+				"          admission_id as string,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source2",
+				"source(output(",
+				"          billing_id as string,",
+				"          admission_id as string,",
+				"          charge_type as string,",
+				"          amount as string,",
+				"          payment_status as string,",
+				"          payment_date as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source3",
+				"source(output(",
+				"          admission_id as string,",
+				"          patient_id as string,",
+				"          admission_date as string,",
+				"          discharge_date as string,",
+				"          department as string,",
+				"          attending_doctor_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source4",
+				"source1 derive(gender = iif(lower(trim(gender)) == 'm' || lower(trim(gender)) == 'male', 'M',  iif(lower(trim(gender)) == 'f' || lower(trim(gender)) == 'female', 'F', 'Otro'))) ~> genderclean",
+				"genderclean derive(phone = iif(isNull(phone) || lower(trim(phone)) == 'unknown', 'No registrado', phone)) ~> phoneclean",
+				"phoneclean derive(email = iif(isNull(email) || trim(email) == '', 'sin_correo@dominio.com', email)) ~> emailclean",
+				"emailclean derive(insurance_provider = iif(isNull(insurance_provider) || trim(insurance_provider) == '', 'SIN SEGURO', upper(trim(insurance_provider)))) ~> insuranceclean",
+				"source2 derive(severity = iif(isNull(severity) || trim(severity) == '', 'No especificada', upper(trim(severity)))) ~> severityclean",
+				"severityclean derive(icd_code = upper(trim(icd_code))) ~> icdcodeclean",
+				"source3 derive(amount = toDecimal(replace(replace(replace(replace(amount, '$', ''), 'USD', ''), ',', ''), ' ', ''), 10, 2)) ~> amountclean",
+				"amountclean derive(charge_type = iif(isNull(charge_type) || trim(charge_type) == '', 'Desconocido', charge_type)) ~> chargetypeclean",
+				"chargetypeclean derive(payment_status = upper(trim(payment_status))) ~> paymentstatusclean",
+				"paymentstatusclean derive(payment_date = iif(isNull(payment_date) || trim(payment_date) == '', toDate('1900-01-01'), toDate(payment_date))) ~> paymentdateclean",
+				"source4 derive(department = iif(lower(trim(department)) == 'onco' || lower(trim(department)) == 'oncology', 'ONCOLOGY',\r",
+				"iif(lower(trim(department)) == 'cardio' || lower(trim(department)) == 'cardiology' || lower(trim(department)) == 'cardiolgy', 'CARDIOLOGY',\r",
+				"iif(lower(trim(department)) == 'gen surg' || lower(trim(department)) == 'general surgery', 'GENERAL SURGERY',\r",
+				"iif(lower(trim(department)) == 'er' || lower(trim(department)) == 'emergency' || lower(trim(department)) == 'emergancy', 'EMERGENCY',\r",
+				"iif(lower(trim(department)) == 'pediatrics' || lower(trim(department)) == 'paediatrics' || lower(trim(department)) == 'peds', 'PEDIATRICS',\r",
+				"iif(lower(trim(department)) == 'ortho' || lower(trim(department)) == 'orthopedics' || lower(trim(department)) == 'orthopaedics', 'ORTHOPEDICS',\r",
+				"iif(lower(trim(department)) == 'neuro' || lower(trim(department)) == 'neurology' || lower(trim(department)) == 'nuerology', 'NEUROLOGY',\r",
+				"upper(trim(department)))))))))) ~> departmentclean",
+				"departmentclean derive(admission_date = iif(isNull(admission_date) || trim(admission_date) == 'NULL', toDate('1900-01-01'), toDate(admission_date, 'MM-dd-yyyy'))) ~> admissiondateclean",
+				"admissiondateclean derive(discharge_date = iif(isNull(discharge_date) || trim(discharge_date) == 'NULL', toDate('1900-01-01'), toDate(discharge_date, 'MM-dd-yyyy'))) ~> dischargedateclean",
+				"insuranceclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          patient_id as string,",
+				"          full_name as string,",
+				"          gender as string,",
+				"          date_of_birth as string,",
+				"          phone as string,",
+				"          email as string,",
+				"          address as string,",
+				"          insurance_provider as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1",
+				"icdcodeclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          diagnosis_id as string,",
+				"          admission_id as string,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink2",
+				"paymentdateclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          billing_id as string,",
+				"          admission_id as string,",
+				"          charge_type as string,",
+				"          amount as string,",
+				"          payment_status as string,",
+				"          payment_date as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink3",
+				"dischargedateclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          admission_id as string,",
+				"          patient_id as string,",
+				"          admission_date as string,",
+				"          discharge_date as string,",
+				"          department as string,",
+				"          attending_doctor_id as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink4"
+			]
+		}
+	}
+}
