@@ -1,0 +1,83 @@
+{
+	"name": "df_silver_patients",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_patients",
+						"type": "DatasetReference"
+					},
+					"name": "dfsilverpatients"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_patients",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "emailclean"
+				},
+				{
+					"name": "phoneclean"
+				},
+				{
+					"name": "genereclean"
+				},
+				{
+					"name": "dateclean"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          patient_id as string,",
+				"          full_name as string,",
+				"          gender as string,",
+				"          date_of_birth as string,",
+				"          phone as string,",
+				"          email as string,",
+				"          address as string,",
+				"          insurance_provider as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> dfsilverpatients",
+				"genereclean derive(email = iif(isNull(email) || lower(trim(email)) == 'null' || trim(email) == '', 'sin_correo@dominio.com', replace(replace(lower(trim(email)), ',', '.'), ' at ', '@'))) ~> emailclean",
+				"emailclean derive(phone = iif(isNull(phone) || trim(phone) == '' || lower(trim(phone)) == 'null' || lower(trim(phone)) == 'unknown', 'No registrado', phone)) ~> phoneclean",
+				"dfsilverpatients derive(gender = iif(lower(trim(gender)) == 'm' || lower(trim(gender)) == 'male', 'M', iif(lower(trim(gender)) == 'f' || lower(trim(gender)) == 'female', 'F', 'Otro'))) ~> genereclean",
+				"phoneclean derive(date_of_birth = iif(isNull(date_of_birth) || lower(trim(date_of_birth)) == 'null' || trim(date_of_birth) == '', toDate('1900-01-01'), toDate(date_of_birth))) ~> dateclean",
+				"dateclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          patient_id as integer,",
+				"          full_name as string,",
+				"          gender as string,",
+				"          date_of_birth as date,",
+				"          phone as string,",
+				"          email as string,",
+				"          address as string,",
+				"          insurance_provider as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

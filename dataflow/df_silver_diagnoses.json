@@ -1,0 +1,73 @@
+{
+	"name": "df_silver_diagnoses",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_diagnoses",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "icdcodeclean"
+				},
+				{
+					"name": "severityclean"
+				},
+				{
+					"name": "diagnosisdescriptionclean"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          diagnosis_id as string,",
+				"          admission_id as string,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(icd_code = iif(isNull(icd_code) || trim(icd_code) == '' || lower(trim(icd_code)) == 'null', 'SIN_CODIGO', upper(trim(icd_code)))) ~> icdcodeclean",
+				"icdcodeclean derive(severity = iif(isNull(severity) || trim(severity) == '' || lower(trim(severity)) == 'null', 'NO ESPECIFICADA', upper(trim(severity)))) ~> severityclean",
+				"severityclean derive(diagnosis_description = iif(isNull(diagnosis_description) || trim(diagnosis_description) == '' || lower(trim(diagnosis_description)) == 'null', 'SIN DESCRIPCION', trim(diagnosis_description))) ~> diagnosisdescriptionclean",
+				"diagnosisdescriptionclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          diagnosis_id as integer,",
+				"          admission_id as integer,",
+				"          icd_code as string,",
+				"          diagnosis_description as string,",
+				"          severity as string",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

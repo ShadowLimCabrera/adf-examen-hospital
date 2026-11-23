@@ -1,0 +1,79 @@
+{
+	"name": "df_silver_billing",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_billing",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_billing",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "amountclean"
+				},
+				{
+					"name": "paymentstatusclean"
+				},
+				{
+					"name": "paymentdateclean"
+				},
+				{
+					"name": "chargetypeclean"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          billing_id as string,",
+				"          admission_id as string,",
+				"          charge_type as string,",
+				"          amount as string,",
+				"          payment_status as string,",
+				"          payment_date as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(amount = iif(isNull(amount) || trim(amount) == '' || lower(trim(amount)) == 'null', toDecimal(0, 10, 2), toDecimal(replace(replace(replace(replace(amount, '$', ''), 'USD', ''), ',', ''), ' ', ''), 10, 2))) ~> amountclean",
+				"amountclean derive(payment_status = iif(isNull(payment_status) || trim(payment_status) == '' || lower(trim(payment_status)) == 'null', 'DESCONOCIDO', upper(trim(payment_status)))) ~> paymentstatusclean",
+				"paymentstatusclean derive(payment_date = iif(isNull(payment_date) || trim(payment_date) == '' || lower(trim(payment_date)) == 'null', toDate('1900-01-01'), toDate(payment_date))) ~> paymentdateclean",
+				"paymentdateclean derive(charge_type = iif(isNull(charge_type) || trim(charge_type) == '' || lower(trim(charge_type)) == 'null', 'DESCONOCIDO', upper(trim(charge_type)))) ~> chargetypeclean",
+				"chargetypeclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          billing_id as integer,",
+				"          admission_id as integer,",
+				"          charge_type as string,",
+				"          amount as decimal(12,2),",
+				"          payment_status as string,",
+				"          payment_date as date",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

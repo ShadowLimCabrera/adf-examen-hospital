@@ -1,0 +1,76 @@
+{
+	"name": "df_silver_admission",
+	"properties": {
+		"folder": {
+			"name": "Silver"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_bronze_admission",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_admissions",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "departamentclean"
+				},
+				{
+					"name": "admisiondateclean"
+				},
+				{
+					"name": "dischargedateclean"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          admission_id as string,",
+				"          patient_id as string,",
+				"          admission_date as string,",
+				"          discharge_date as string,",
+				"          department as string,",
+				"          attending_doctor_id as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> source1",
+				"source1 derive(department = iif(isNull(department) || trim(department) == '' || lower(trim(department)) == 'null', 'DESCONOCIDO', upper(trim(department)))) ~> departamentclean",
+				"departamentclean derive(admission_date = iif(isNull(admission_date) || trim(admission_date) == '' || lower(trim(admission_date)) == 'null', toDate('1900-01-01'), toDate(admission_date))\r",
+				") ~> admisiondateclean",
+				"admisiondateclean derive(discharge_date = iif(isNull(discharge_date) || trim(discharge_date) == '' || lower(trim(discharge_date)) == 'null', toDate('1900-01-01'), toDate(discharge_date))) ~> dischargedateclean",
+				"dischargedateclean sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          admission_id as integer,",
+				"          patient_id as integer,",
+				"          admission_date as date,",
+				"          discharge_date as date,",
+				"          department as string,",
+				"          attending_doctor_id as integer",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}
