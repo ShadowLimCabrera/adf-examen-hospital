@@ -1,0 +1,78 @@
+{
+	"name": "df_gold_dim_fecha",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_gold_fact_admisiones",
+						"type": "DatasetReference"
+					},
+					"name": "dfgolddimfecha"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_gold_dim_fecha",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          fecha_key as integer,",
+				"          fecha_completa as date,",
+				"          anio as integer,",
+				"          trimestre as integer,",
+				"          trimestre_nombre as string,",
+				"          mes as integer,",
+				"          mes_nombre as string,",
+				"          mes_corto as string,",
+				"          semana_anio as integer,",
+				"          dia_mes as integer,",
+				"          dia_semana as integer,",
+				"          dia_nombre as string,",
+				"          es_fin_de_semana as integer",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     batchSize: 0,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT \\n    CAST(FORMAT(fecha, \\'yyyyMMdd\\') AS INT) AS fecha_key,\\n    CAST(fecha AS DATE) AS fecha_completa,\\n    YEAR(fecha) AS anio,\\n    DATEPART(QUARTER, fecha) AS trimestre,\\n    \\'T\\' + CAST(DATEPART(QUARTER, fecha) AS VARCHAR) AS trimestre_nombre,\\n    MONTH(fecha) AS mes,\\n    DATENAME(MONTH, fecha) AS mes_nombre,\\n    LEFT(DATENAME(MONTH, fecha), 3) AS mes_corto,\\n    DATEPART(WEEK, fecha) AS semana_anio,\\n    DAY(fecha) AS dia_mes,\\n    DATEPART(WEEKDAY, fecha) AS dia_semana,\\n    DATENAME(WEEKDAY, fecha) AS dia_nombre,\\n    CASE WHEN DATEPART(WEEKDAY, fecha) IN (1, 7) THEN 1 ELSE 0 END AS es_fin_de_semana\\nFROM (\\n    SELECT TOP (2557)\\n        DATEADD(DAY, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1, \\'2020-01-01\\') AS fecha\\n    FROM (VALUES (1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) E1(N)\\n    CROSS JOIN (VALUES (1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) E2(N)\\n    CROSS JOIN (VALUES (1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) E3(N)\\n    CROSS JOIN (VALUES (1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) E4(N)\\n) AS fechas',",
+				"     format: 'query') ~> dfgolddimfecha",
+				"dfgolddimfecha sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          fecha_key as integer,",
+				"          fecha_completa as date,",
+				"          anio as integer,",
+				"          trimestre as integer,",
+				"          trimestre_nombre as string,",
+				"          mes as integer,",
+				"          mes_nombre as string,",
+				"          mes_corto as string,",
+				"          semana_anio as integer,",
+				"          dia_mes as integer,",
+				"          dia_semana as integer,",
+				"          dia_nombre as string,",
+				"          es_fin_de_semana as boolean",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}

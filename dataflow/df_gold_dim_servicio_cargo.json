@@ -1,0 +1,63 @@
+{
+	"name": "df_gold_dim_servicio_cargo",
+	"properties": {
+		"folder": {
+			"name": "Gold"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_billing",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_silver_billing",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [],
+			"scriptLines": [
+				"source(output(",
+				"          billing_id as integer,",
+				"          admission_id as integer,",
+				"          charge_type as string,",
+				"          amount as decimal(12,2),",
+				"          payment_status as string,",
+				"          payment_date as date",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     query: 'SELECT DISTINCT charge_type AS tipo_cargo, payment_status AS estado_pago\\nFROM silver.billing\\nWHERE charge_type IS NOT NULL AND payment_status IS NOT NULL',",
+				"     format: 'query') ~> source1",
+				"source1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     input(",
+				"          billing_id as integer,",
+				"          admission_id as integer,",
+				"          charge_type as string,",
+				"          amount as decimal(12,2),",
+				"          payment_status as string,",
+				"          payment_date as date",
+				"     ),",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:false,",
+				"     upsertable:false,",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> sink1"
+			]
+		}
+	}
+}
